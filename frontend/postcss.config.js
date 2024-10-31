@@ -1,6 +1,6 @@
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
+/** @type {import('tailwindcss').config} */
+
+export const plugins = {
+  tailwindcss: {},
+  autoprefixer: {},
+};

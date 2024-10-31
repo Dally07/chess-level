@@ -8,7 +8,7 @@ export class ChessGame {
     }
 
     // Méthodes pour gérer le jeu
-    makeMove(move: string) {
+    makeMove(move: {from: string, to: string, promotion?: string}) {
         const result = this.chess.move(move);
         return result;
     }
@@ -19,6 +19,14 @@ export class ChessGame {
 
     isGameOver() {
         return this.chess.isGameOver();
+    }
+
+    isCheck() {
+        return this.chess.inCheck();
+    }
+
+    isCheckMat() {
+        return this.chess.isCheckmate();
     }
 
     // Ajoute d'autres méthodes selon les besoins
