@@ -19,7 +19,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+<<<<<<< Updated upstream
    // "noUncheckedSideEffectImports": true
+=======
+    //"noUncheckedSideEffectImports": true
+>>>>>>> Stashed changes
   },
   "include": ["vite.config.ts"]
 }
