@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import api from './api';
 
-function App() {
-    const [message, setMessage] = useState('');
+const App: React.FC = () => {
+    const [message, setMessage] = useState<string>('');
 
     useEffect(() => {
         api.get('/')
@@ -16,6 +16,6 @@ function App() {
             <p>Message du backend : {message}</p>
         </div>
     );
-}
+};
 
 export default App;
