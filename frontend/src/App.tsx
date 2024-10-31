@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from './api';
+import Chessboard from './Chessboard';
 
 const App: React.FC = () => {
     const [message, setMessage] = useState<string>('');
@@ -14,6 +15,7 @@ const App: React.FC = () => {
         <div>
             <h1>Jeu d'Échecs</h1>
             <p>Message du backend : {message}</p>
+            <Chessboard />
         </div>
     );
 };
