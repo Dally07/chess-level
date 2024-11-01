@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChessGame } from './chessGame';
 
 const pieceSymbols: { [key: string]: string } = {

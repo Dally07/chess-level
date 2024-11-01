@@ -5,7 +5,7 @@ import chess.engine
 app = Flask(__name__)
 
 # Initialisation de l'engine (IA) Stockfish et niveau de difficulté
-engine = chess.engine.SimpleEngine.popen_uci("C:\Program Files\Stockfish\stockfish\stockfish-windows-x86-64-avx2.exe")
+engine = chess.engine.SimpleEngine.popen_uci("./engine/stockfish-windows-x86-64-sse41-popcnt.exe")
 ai_level = 1  # Niveau initial de l'IA
 
 @app.route("/ai-move", methods=["POST"])
