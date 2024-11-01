@@ -29,5 +29,9 @@ export class ChessGame {
         return this.chess.isCheckmate();
     }
 
+    getFEN(): string {
+        return this.chess.fen();
+    }
+
     // Ajoute d'autres méthodes selon les besoins
 }

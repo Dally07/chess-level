@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ChessGame } from './chessGame';
+import axios from 'axios';
 
-const pieceSymbols: { [key: string]: string } = {
+const pieceSymbols = {
     'p': '♙', 'r': '♖', 'n': '♘', 'b': '♗', 'q': '♕', 'k': '♔',
     'P': '♟', 'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚',
 };
@@ -14,8 +15,8 @@ const Chessboard = () => {
     const [gameMessage, setGameMessage] = useState<string | null>(null);
     const [isGameOver, setIsGameOver] = useState(false);
 
-    const handleSquareClick = (square: any, squareIndex: number) => {
-        if (isGameOver) return; // Empêcher les clics si la partie est terminée
+    const handleSquareClick = async (square: any, squareIndex: number) => {
+        if (isGameOver) return;
 
         const file = String.fromCharCode(97 + (squareIndex % 8));
         const rank = (8 - Math.floor(squareIndex / 8)).toString();
@@ -27,7 +28,22 @@ const Chessboard = () => {
 
             if (result) {
                 setBoard(chessGame.getBoard());
+                const moveUCI = move.from + move.to;
+                const response = await fetch("http://127.0.0.1:5000/ai-move", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type" : "application/json"
+                    },
+                    body: JSON.stringify({ fen: chessGame.getFEN(), move: moveUCI }),
+                });
+
+                const data = await response.json();
+                chessGame.loadFEN(data, fen);
+
+                setBoard(chessGame.getBoard());
+
                 checkGameStatus();
+
             } else {
                 alert("Mouvement illégal");
             }
@@ -54,7 +70,7 @@ const Chessboard = () => {
     };
 
     const renderSquare = (square: any, index: number) => {
-        const piece = square ? square.type : null;
+        const piece = square ? square.type as keyof typeof pieceSymbols : null;
         const pieceSymbol = piece ? pieceSymbols[piece] : null;
         const squareClass = (index + Math.floor(index / 8)) % 2 === 0 ? 'bg-orange-200' : 'bg-orange-300';
         const selectedClass = selectedSquare === String.fromCharCode(97 + (index % 8)) + (8 - Math.floor(index / 8)) ? 'border-4 border-blue-500' : '';
