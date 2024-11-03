@@ -132,7 +132,7 @@ const Chessboard = () => {
             alert("Erreur lors de l'appel de l'API : " + (error.message || error));
         }
     };
-    
+2    
 
     const checkGameStatus = (userWon: boolean) => {
         if (userWon) {
@@ -181,8 +181,17 @@ const Chessboard = () => {
     };
 
     return (
-        <div className="relative">
-            <div className="grid grid-cols-8 ">
+        <div className="h-screen flex flex-col">
+            <header className=" w-full flex justify-between bg-black items-center p-1 text-white shadow-lg z-10 border-b-2">
+            
+                <div className='flex'>AI level</div>
+                <div className='flex text-xs'>
+                    <span>Niveau de l'IA : {botLevel}</span>    
+                
+            </div>
+            </header>
+            
+            <div className="grid grid-cols-8">
                 {board.flat().map((square, index) => renderSquare(square, index))}
             </div>
             {gameMessage && (
@@ -192,9 +201,7 @@ const Chessboard = () => {
                     </div>
                 </div>
             )}
-            <div className="mt-4 text-center text-lg">
-                Niveau de l'IA : {botLevel}
-            </div>
+            
         </div>
     );
 };
