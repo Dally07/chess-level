@@ -29,9 +29,19 @@ export class ChessGame {
         return this.chess.isCheckmate();
     }
 
-    getFEN(): string {
-        return this.chess.fen();
+    loadFEN(fen: string) {
+       
+        this.chess.load(fen);
     }
+
+    getFEN(): string {
+        const CurrentFEN =  this.chess.fen();
+        
+        return CurrentFEN;
+
+    }
+
+   
 
     // Ajoute d'autres méthodes selon les besoins
 }
