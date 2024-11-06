@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChessGame } from './chessGame';
+import { Square } from 'chess.js';
 
 const pieceSymbols = {
     'p': '♙', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', // PIECE NOIRE
@@ -41,12 +42,11 @@ const Chessboard = () => {
                 chessGame.loadFEN(data.fen);
                 console.log("FEN reçu après chargement:", data.fen);
                 setBoard(chessGame.getBoard());
-            } else {
+                setBotLevel(data.bot_level ?? botLevel);
+            } 
+            if (data.bot_level !== undefined) setBotLevel(data.bot_level);
+            else {
                 alert("Erreur : l'API n'a pas renvoyé l'état initial du jeu.");
-            }
-
-            if (data.bot_level !== undefined) {
-                setBotLevel(data.bot_level);
             }
 
         } catch (error: any) {
@@ -63,28 +63,40 @@ const Chessboard = () => {
         const squareId = file + rank;
     
         if (selectedSquare) {
-            const move = { from: selectedSquare, to: squareId, promotion: 'q' };
-            const result = chessGame.makeMove(move);
+            // Si une case est déjà sélectionnée, vérifiez si la nouvelle case a une pièce de la même couleur
+            const selectedPiece = chessGame.getPieceAtSquare(selectedSquare as Square);
+            const newSquarePiece = chessGame.getPieceAtSquare(squareId as Square);
     
-            if (result) {
-                setBoard(chessGame.getBoard());
-                const moveUCI = move.from + move.to;
-                const afterMove = chessGame.getFEN();  // Assure-toi que c'est le FEN correct
-    
-                console.log("FEN après déplacement de l'utilisateur:", afterMove);
-                const userWon = chessGame.isCheckMat();
-    
-                // Assure-toi d'envoyer l'état correct à makeAiMoveRequest
-                await makeAiMoveRequest(moveUCI, afterMove);
-                checkGameStatus(userWon);
+            if (newSquarePiece && selectedPiece && newSquarePiece.color === selectedPiece.color) {
+                // Si la pièce sélectionnée est de la même couleur, changez simplement la sélection
+                setSelectedSquare(squareId);
             } else {
-                alert("Mouvement illégal");
+                // Sinon, essayez de faire le mouvement
+                const move = { from: selectedSquare, to: squareId, promotion: 'q' };
+                const result = chessGame.makeMove(move);
+    
+                if (result) {
+                    setBoard(chessGame.getBoard());
+                    const moveUCI = move.from + move.to;
+                    const afterMove = chessGame.getFEN();
+    
+                    console.log("FEN après déplacement de l'utilisateur:", afterMove);
+                    const userWon = chessGame.isCheckMat();
+    
+                    // Assure-toi d'envoyer l'état correct à makeAiMoveRequest
+                    await makeAiMoveRequest(moveUCI, afterMove);
+                    checkGameStatus(userWon);
+                } else {
+                    alert("Mouvement illégal");
+                }
+                setSelectedSquare(null);
             }
-            setSelectedSquare(null);
         } else {
+            // Si aucune case n'est sélectionnée, sélectionnez simplement la case actuelle
             setSelectedSquare(squareId);
         }
     };
+    
     
     const makeAiMoveRequest = async (moveUCI: string, userFEN: string) => {
         try {
@@ -186,7 +198,7 @@ const Chessboard = () => {
             
                 <div className='flex'>AI level</div>
                 <div className='flex text-xs'>
-                    <span>Niveau de l'IA : {botLevel}</span>    
+                    <span>Bot lvl : {botLevel}</span>    
                 
             </div>
             </header>
@@ -196,7 +208,7 @@ const Chessboard = () => {
             </div>
             {gameMessage && (
                 <div className={`absolute inset-0 ${isGameOver ? 'bg-black bg-opacity-50' : ''} flex items-center justify-center pointer-events-none`}>
-                    <div className="text-white text-2xl font-bold p-4 bg-gray-800 rounded-md shadow-lg">
+                    <div className="text-white text-2xl font-bold p-4 rounded-md shadow-lg">
                         {gameMessage}
                     </div>
                 </div>

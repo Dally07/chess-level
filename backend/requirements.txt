@@ -1,0 +1,168 @@
+import os
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+import chess
+import chess.engine
+from datetime import datetime
+
+# Charger les variables d'environnement
+load_dotenv()
+
+# Configuration de l'application Flask
+app = Flask(__name__)
+CORS(app)
+
+# Configurer la base de données PostgreSQL avec SQLAlchemy
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# Configurer le moteur d'échecs
+engine = chess.engine.SimpleEngine.popen_uci("C:/stockfish/stockfish-windows-x86-64-sse41-popcnt.exe")
+bot_level = 1  # Niveau initial de l'IA
+current_fen = chess.STARTING_FEN  # Stocker la FEN mise à jour après chaque coup
+
+# Modèles de la base de données
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(50), nullable=False)
+    total_score = db.Column(db.Integer, default=0)
+
+class Game(db.Model):
+    __tablename__ = 'games'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    ai_level = db.Column(db.Integer, nullable=False)
+    user_score = db.Column(db.Integer, default=0)
+    ai_score = db.Column(db.Integer, default=0)
+    result = db.Column(db.String(10))  # 'win', 'lose', 'draw'
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('games', lazy=True))
+
+class Move(db.Model):
+    __tablename__ = 'moves'
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('games.id'), nullable=False)
+    move_number = db.Column(db.Integer, nullable=False)
+    player_move = db.Column(db.String(10))
+    ai_move = db.Column(db.String(10))
+    
+    game = db.relationship('Game', backref=db.backref('moves', lazy=True))
+
+# Fonction pour ajuster le niveau de l'IA en fonction de l'historique
+def adjust_ai_level(user_id):
+    games = Game.query.filter_by(user_id=user_id).order_by(Game.timestamp.desc()).limit(5).all()
+    wins = sum(1 for game in games if game.result == "win")
+    losses = sum(1 for game in games if game.result == "lose")
+
+    if losses > wins:
+        return min(bot_level + 1, 8)
+    elif wins > losses:
+        return max(bot_level - 1, 1)
+    return bot_level
+
+# Fonction pour enregistrer les mouvements dans la base de données
+def save_move(game_id, move_number, player_move, ai_move):
+    new_move = Move(
+        game_id=game_id,
+        move_number=move_number,
+        player_move=player_move,
+        ai_move=ai_move
+    )
+    db.session.add(new_move)
+    db.session.commit()
+
+# Enregistrer le résultat de la partie
+def save_game_result(user_id, ai_level, user_score, ai_score, result):
+    game = Game(
+        user_id=user_id,
+        ai_level=ai_level,
+        user_score=user_score,
+        ai_score=ai_score,
+        result=result
+    )
+    db.session.add(game)
+    db.session.commit()
+    return game.id  # Retourne l'ID de la partie pour les mouvements
+
+# Obtenir le mouvement de l'IA
+def get_ai_move(board, level):
+    result = engine.play(board, chess.engine.Limit(depth=level))
+    print("AI move:", result.move)
+    return result.move
+
+# Routes API
+@app.route("/start-game", methods=["POST"])
+def start_game():
+    global current_fen, bot_level
+    data = request.get_json()
+    user_id = data.get("user_id")
+    bot_level = adjust_ai_level(user_id)
+
+    current_fen = chess.STARTING_FEN
+    return jsonify({"fen": current_fen, "bot_level": bot_level})
+
+@app.route("/ai-move", methods=["POST"])
+def ai_move():
+    global current_fen, bot_level
+    data = request.get_json()
+    player_move = data.get("move")
+    user_id = data.get("user_id")
+    user_won = data.get("user_won", False)
+
+    try:
+        board = chess.Board(current_fen)
+        move = chess.Move.from_uci(player_move)
+        if move not in board.legal_moves:
+            return jsonify({"error": "Mouvement utilisateur invalide"}), 400
+        board.push(move)
+
+        current_fen = board.fen()
+
+        if board.is_checkmate():
+            save_game_result(user_id, bot_level, 1, 0, "win")
+            return jsonify({"message": "Échec et mat !", "fen": current_fen}), 200
+
+        ai_move = get_ai_move(board, bot_level)
+        board.push(ai_move)
+
+        current_fen = board.fen()
+        if board.is_checkmate():
+            save_game_result(user_id, bot_level, 0, 1, "lose")
+            return jsonify({"message": "L'IA a gagné !", "fen": current_fen}), 200
+
+        game_id = save_game_result(user_id, bot_level, 0, 0, "ongoing")
+        save_move(game_id, board.fullmove_number, player_move, ai_move.uci())
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if user_won:
+        bot_level = min(bot_level + 1, 8)
+
+    return jsonify({
+        "fen": current_fen,
+        "ai_move": {"from": ai_move.uci()[:2], "to": ai_move.uci()[2:]},
+        "bot_level": bot_level
+    })
+
+@app.route("/reset-level", methods=["POST"])
+def reset_level():
+    global bot_level
+    bot_level = 1
+    return jsonify({"message": "AI level reset to 1"})
+
+import atexit
+@atexit.register
+def cleanup():
+    engine.quit()
+
+if __name__ == "__main__":
+    app.run(debug=True)

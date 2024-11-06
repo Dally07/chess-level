@@ -1,4 +1,4 @@
-import { Chess } from 'chess.js';
+import { Chess, Square } from 'chess.js';
 
 export class ChessGame {
     private chess: Chess;
@@ -32,6 +32,10 @@ export class ChessGame {
     loadFEN(fen: string) {
        
         this.chess.load(fen);
+    }
+
+    getPieceAtSquare(squareId: Square) {
+        return this.chess.get(squareId);
     }
 
     getFEN(): string {

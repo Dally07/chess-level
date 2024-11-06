@@ -27,58 +27,65 @@ def ai_move():
 
     data = request.get_json()
     player_move = data.get("move")
-    user_won = data.get("user_won", False)
 
     try:
-        # Créer le plateau avec `current_fen` pour garantir la cohérence
+        # Création du plateau et application du coup de l'utilisateur
         board = chess.Board(current_fen)
-        print("Current FEN:", current_fen)
-        print("Player move:", player_move)
-
-        # Appliquer le mouvement de l'utilisateur
         move = chess.Move.from_uci(player_move)
         if move not in board.legal_moves:
             return jsonify({"error": "Mouvement utilisateur invalide"}), 400
         board.push(move)
-
-        # Mise à jour de `current_fen` après le coup de l'utilisateur
         current_fen = board.fen()
-        print("FEN after user move:", current_fen)
 
-        # Vérification de l'état après le mouvement de l'utilisateur
+        # Vérifier si le joueur a gagné
         if board.is_checkmate():
-            return jsonify({"message": "Échec et mat ! La partie est terminée.", "fen": current_fen}), 200
-        if board.is_stalemate():
-            return jsonify({"message": "Match nul ! La partie est terminée.", "fen": current_fen}), 200
+            bot_level = min(bot_level + 1, 8)  # Augmenter le niveau du bot
+            return jsonify({
+                "message": "Échec et mat ! Vous avez gagné !",
+                "winner": "user",
+                "next_game_bot_level": bot_level,
+                "fen": current_fen
+            }), 200
 
-        # L'IA joue son mouvement
+        if board.is_stalemate():
+            return jsonify({
+                "message": "Match nul !",
+                "winner": "draw",
+                "next_game_bot_level": bot_level,
+                "fen": current_fen
+            }), 200
+
+        # Coup de l'IA
         ai_move = get_ai_move(board, bot_level)
         board.push(ai_move)
-
-        # Mise à jour de `current_fen` après le coup de l'IA
         current_fen = board.fen()
-        print("FEN after AI's move:", current_fen)
 
-        # Vérification de l'état après le mouvement de l'IA
+        # Vérifier si l'IA a gagné
         if board.is_checkmate():
-            return jsonify({"message": "L'IA a gagné par échec et mat ! La partie est terminée.", "fen": current_fen}), 200
+            bot_level = max(bot_level - 1, 1)  # Baisser le niveau du bot
+            return jsonify({
+                "message": "L'IA a gagné par échec et mat.",
+                "winner": "ai",
+                "next_game_bot_level": bot_level,
+                "fen": current_fen
+            }), 200
+
         if board.is_stalemate():
-            return jsonify({"message": "Match nul ! La partie est terminée.", "fen": current_fen}), 200
+            return jsonify({
+                "message": "Match nul !",
+                "winner": "draw",
+                "next_game_bot_level": bot_level,
+                "fen": current_fen
+            }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # Augmenter le niveau de l'IA uniquement si l'utilisateur a gagné
-    if user_won:
-        bot_level = min(bot_level + 1, 8)
-
-    # Renvoie la FEN mise à jour après que l'IA a joué
     return jsonify({
         "fen": current_fen,
         "ai_move": {"from": ai_move.uci()[:2], "to": ai_move.uci()[2:]},
         "bot_level": bot_level
     })
-
 
 
 @app.route("/reset-level", methods=["POST"])
